@@ -29,22 +29,32 @@ fn load_adjacency_list_from_csv(filename: &str) -> Result<HashMap<String, Vec<St
     Ok(adjacency_list)
 }
 
+// Define a struct to represent a node along with its distance and path
+#[derive(Debug, Clone)]
+struct NodeWithDistanceAndPath {
+    distance: i32,
+    path: Vec<String>,
+}
+
 // BFS algorithm to calculate distances from a source node to all other nodes
-fn bfs(adjacency_list: &HashMap<String, Vec<String>>, source: &str) -> HashMap<String, i32> {
-    let mut distances: HashMap<String, i32> = HashMap::new();
+fn bfs(adjacency_list: &HashMap<String, Vec<String>>, source: &str) -> HashMap<String, NodeWithDistanceAndPath> {
+    let mut distances: HashMap<String, NodeWithDistanceAndPath> = HashMap::new();
     let mut visited: HashSet<String> = HashSet::new();
-    let mut queue: Vec<(String, i32)> = Vec::new();
+    let mut queue: Vec<(String, i32, Vec<String>)> = Vec::new();
 
     visited.insert(source.to_string());
-    queue.push((source.to_string(), 0));
+    queue.push((source.to_string(), 0, vec![source.to_string()]));
 
-    while let Some((node, dist)) = queue.pop() {
-        distances.insert(node.clone(), dist);
+    while let Some((node, dist, path)) = queue.pop() {
+        distances.insert(node.clone(), NodeWithDistanceAndPath { distance: dist, path: path.clone() });
+
         if let Some(neighbors) = adjacency_list.get(&node) {
             for neighbor in neighbors {
                 if !visited.contains(neighbor) {
                     visited.insert(neighbor.clone());
-                    queue.push((neighbor.clone(), dist + 1));
+                    let mut new_path = path.clone();
+                    new_path.push(neighbor.clone());
+                    queue.push((neighbor.clone(), dist + 1, new_path));
                 }
             }
         }
@@ -72,18 +82,11 @@ fn main() -> Result<(), std::io::Error> {
     // Calculate distances from the sampled node to all other airports
     let distances = bfs(&adjacency_list, &sampled_node);
 
-    // Write distances from the sampled node to all other airports to output.txt
-    for (airport, &distance) in &distances {
-        writeln!(output_file, "{}[{}: {}]", sampled_node, airport, distance)?;
+    // Write distances and paths from the sampled node to all other airports to output.txt
+    for (airport, node_with_distance_path) in &distances {
+        writeln!(output_file, "Distance from {} to {}: {}", sampled_node, airport, node_with_distance_path.distance)?;
+        writeln!(output_file, "Path: {:?}", node_with_distance_path.path)?;
     }
-
-    // Calculate average distance (excluding distance to itself)
-    let total_distance: i32 = distances.values().sum();
-    let num_pairs = distances.len() - 1; // Subtract 1 to exclude distance to itself
-    let average_distance = total_distance as f64 / num_pairs as f64;
-
-    // Append the average distance to output.txt
-    writeln!(output_file, "Average distance between all pairs of airports (excluding self): {:.2}", average_distance)?;
 
     Ok(())
 }
