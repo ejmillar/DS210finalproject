@@ -1,10 +1,9 @@
 extern crate rand;
 
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::prelude::IteratorRandom; // Bring IteratorRandom trait into scope
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 
 // Define a function to load data from a CSV file and construct the adjacency list
 fn load_adjacency_list_from_csv(filename: &str) -> Result<HashMap<String, Vec<String>>, std::io::Error> {
@@ -54,47 +53,37 @@ fn bfs(adjacency_list: &HashMap<String, Vec<String>>, source: &str) -> HashMap<S
     distances
 }
 
-// Function to print the adjacency list for the first 100 airports
-fn print_adjacency_list(adjacency_list: &HashMap<String, Vec<String>>, num_airports: usize) {
-    let mut count = 0;
-    for (airport, neighbors) in adjacency_list {
-        println!("Airport {}: {:?}", airport, neighbors);
-        count += 1;
-        if count >= num_airports {
-            break;
-        }
-    }
-}
-
 fn main() -> Result<(), std::io::Error> {
     // Load data from routes.csv and construct the adjacency list
     let adjacency_list = load_adjacency_list_from_csv("routes.csv")?;
 
-    // Print the adjacency list for the first 100 airports
-    print_adjacency_list(&adjacency_list, 100);
+    // Randomly select a single node for sampling
+    let mut rng = rand::thread_rng();
+    let sampled_node = adjacency_list.keys().choose(&mut rng).unwrap().clone();
 
-    // Randomly select nodes for sampling
-    let mut rng = thread_rng();
-    let mut sampled_nodes = adjacency_list.keys().collect::<Vec<_>>();
-    sampled_nodes.shuffle(&mut rng);
-    let sampled_nodes = sampled_nodes.iter().take(10).map(|&s| s.to_string()).collect::<Vec<_>>();
+    // Open output.txt to write results
+    let mut output_file = File::create("output.txt")?;
 
-    // Calculate distances between sampled nodes
-    let mut total_distance = 0;
-    let mut num_pairs = 0;
-
-    for source_node in &sampled_nodes {
-        let distances = bfs(&adjacency_list, source_node);
-        for (_, &distance) in &distances {
-            // Increment the total distance for each pair of nodes
-            total_distance += distance;
-            num_pairs += 1;
-        }
+    // Write the adjacency list to output.txt
+    for (airport, neighbors) in &adjacency_list {
+        writeln!(output_file, "Airport {}: {:?}", airport, neighbors)?;
     }
 
-    // Calculate average distance
+    // Calculate distances from the sampled node to all other airports
+    let distances = bfs(&adjacency_list, &sampled_node);
+
+    // Write distances from the sampled node to all other airports to output.txt
+    for (airport, &distance) in &distances {
+        writeln!(output_file, "{}[{}: {}]", sampled_node, airport, distance)?;
+    }
+
+    // Calculate average distance (excluding distance to itself)
+    let total_distance: i32 = distances.values().sum();
+    let num_pairs = distances.len() - 1; // Subtract 1 to exclude distance to itself
     let average_distance = total_distance as f64 / num_pairs as f64;
-    println!("Average distance between all pairs of airports: {:.2}", average_distance);
+
+    // Append the average distance to output.txt
+    writeln!(output_file, "Average distance between all pairs of airports (excluding self): {:.2}", average_distance)?;
 
     Ok(())
 }
