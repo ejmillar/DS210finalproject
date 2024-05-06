@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Randomly sample x number of nodes for sampling
     let mut rng = rand::thread_rng();
-    let mut sampled_nodes: Vec<_> = adjacency_list.keys().choose_multiple(&mut rng, 10);
+    let mut sampled_nodes: Vec<_> = adjacency_list.keys().choose_multiple(&mut rng, 1000);
 
     // Open output.txt to write results
     let mut output_file = File::create("output.txt")?;
